@@ -1,18 +1,16 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Painel – Cantina SENAI</title>
-
-    <!-- Spring Boot -->
     <link rel="stylesheet" th:href="@{/css/global.css}">
-    <link rel="stylesheet" href="/css/funcionario.css">
-
-
+    <link rel="stylesheet" th:href="@{/css/funcionario.css}">
 </head>
 <body>
 
-<!-- NAVBAR -->
+<!-- NAVBAR (a versão anterior tinha uma </div> extra fechando um bloco que
+     nunca foi aberto, o que quebrava o alinhamento da barra inteira) -->
 <nav class="navbar">
     <div class="nav-logo">
         <div class="senai-block">SENAI</div>
@@ -20,9 +18,15 @@
         <span class="nav-titulo">Cantina SENAI</span>
         <span class="nav-badge">Painel do Funcionário</span>
     </div>
-    <div class="nav-avatar">FU</div>
-    <span>Funcionário</span>
-        <a class="btn-sair" th:href="@{/logout}">Sair</a>
+    <div class="nav-right">
+        <div class="nav-user">
+            <div class="nav-avatar"
+                 th:text="${#strings.toUpperCase(#strings.substring(nomeUsuario, 0, 2))}">FU</div>
+            <span th:text="${nomeUsuario}">Funcionário</span>
+        </div>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-sair">Sair</button>
+        </form>
     </div>
 </nav>
 
@@ -44,24 +48,24 @@
     </button>
 </div>
 
-<!-- CONTEÚDO -->
 <div class="page">
 
     <!-- ── ABA PEDIDOS ── -->
     <section class="tab-content active" id="tab-pedidos">
 
-        <!-- FILTROS -->
+        <!-- Os filtros usam os valores reais do enum StatusPedido; antes eram
+             'pendente'/'pronto'/'entregue', que nunca casavam com nada. -->
         <div class="filtros-pedido">
             <div class="filtro-grupo">
                 <button class="filtro-status active" onclick="filtrarStatus('todos', this)">Todos</button>
-                <button class="filtro-status" onclick="filtrarStatus('pendente', this)">Pendentes</button>
-                <button class="filtro-status" onclick="filtrarStatus('pronto', this)">Prontos</button>
-                <button class="filtro-status" onclick="filtrarStatus('entregue', this)">Entregues</button>
+                <button class="filtro-status" onclick="filtrarStatus('CRIADO', this)">Pendentes</button>
+                <button class="filtro-status" onclick="filtrarStatus('EM_PREPARACAO', this)">Em preparo</button>
+                <button class="filtro-status" onclick="filtrarStatus('PRONTO', this)">Prontos</button>
             </div>
-            <input class="search-input" type="text" placeholder="Buscar por número ou nome..." id="buscaPedido" oninput="renderPedidos()"/>
+            <input class="search-input" type="text" placeholder="Buscar por número ou nome..."
+                   id="buscaPedido" oninput="renderPedidos()" aria-label="Buscar pedido"/>
         </div>
 
-        <!-- LISTA DE PEDIDOS -->
         <div class="pedidos-grid" id="listaPedidos"></div>
         <p class="vazio" id="vazioPedidos" style="display:none">Nenhum pedido encontrado.</p>
 
@@ -72,7 +76,8 @@
 
         <div class="estoque-header">
             <div class="filtros-pedido" style="margin-bottom:0">
-                <input class="search-input" type="text" placeholder="Buscar produto..." id="buscaEstoque" oninput="renderEstoque()"/>
+                <input class="search-input" type="text" placeholder="Buscar produto..."
+                       id="buscaEstoque" oninput="renderEstoque()" aria-label="Buscar produto"/>
             </div>
             <button class="btn-add-produto" onclick="abrirModalProduto()">+ Adicionar produto</button>
         </div>
@@ -83,6 +88,7 @@
                 <tr>
                     <th>Produto</th>
                     <th>Descrição</th>
+                    <th>Preço</th>
                     <th>Qtd. em estoque</th>
                     <th>Status</th>
                     <th>Ações</th>
@@ -103,7 +109,7 @@
         <p class="modal-titulo">Atualizar estoque</p>
         <p class="modal-sub" id="modalProdutoNome"></p>
         <div class="form-group" style="margin-top:1rem">
-            <label>Nova quantidade</label>
+            <label for="inputQtd">Nova quantidade</label>
             <input type="number" id="inputQtd" min="0" placeholder="0" class="modal-input"/>
         </div>
         <div class="modal-actions">
@@ -113,20 +119,33 @@
     </div>
 </div>
 
-<!-- MODAL ADICIONAR PRODUTO -->
+<!-- MODAL ADICIONAR PRODUTO (ganhou preço e categoria, que o back exige) -->
 <div class="modal-overlay" id="modalProduto">
     <div class="modal">
         <p class="modal-titulo">Novo produto</p>
         <div class="form-group" style="margin-top:1rem">
-            <label>Nome do produto</label>
+            <label for="inputNomeProduto">Nome do produto</label>
             <input type="text" id="inputNomeProduto" placeholder="Ex: Coxinha" class="modal-input"/>
         </div>
         <div class="form-group">
-            <label>Descrição</label>
+            <label for="inputDescProduto">Descrição</label>
             <input type="text" id="inputDescProduto" placeholder="Ex: Recheio de frango" class="modal-input"/>
         </div>
         <div class="form-group">
-            <label>Quantidade inicial</label>
+            <label for="inputPrecoProduto">Preço (R$)</label>
+            <input type="number" id="inputPrecoProduto" min="0.01" step="0.01"
+                   placeholder="0,00" class="modal-input"/>
+        </div>
+        <div class="form-group">
+            <label for="inputCategoriaProduto">Categoria</label>
+            <select id="inputCategoriaProduto" class="modal-input">
+                <option value="LANCHE">Lanche</option>
+                <option value="BEBIDA">Bebida</option>
+                <option value="SOBREMESA">Sobremesa</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="inputQtdProduto">Quantidade inicial</label>
             <input type="number" id="inputQtdProduto" min="0" placeholder="0" class="modal-input"/>
         </div>
         <div class="modal-actions">
@@ -136,12 +155,9 @@
     </div>
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- Spring Boot -->
+<script th:src="@{/js/app.js}"></script>
 <script th:src="@{/js/funcionario.js}"></script>
-<!-- Live Server -->
-<script src="/project-senai-dev/project-senai/src/main/resources/static/js/funcionario.js"></script>
 </body>
 </html>
