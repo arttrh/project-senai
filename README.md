@@ -103,13 +103,15 @@ mysql -u root -p < src/database/mySql.sql
 
 ### 3. Configure a conexão
 
-Em `src/main/resources/application.properties`, aponte para o seu MySQL:
+A conexão vem de variáveis de ambiente, com padrão para MySQL local:
 
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/cantinasenai
-spring.datasource.username=seu_usuario
-spring.datasource.password=sua_senha
+```bash
+export SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/cantinasenai
+export SPRING_DATASOURCE_USERNAME=seu_usuario
+export SPRING_DATASOURCE_PASSWORD=sua_senha
 ```
+
+Ou edite os padrões em `src/main/resources/application.properties`.
 
 ### 4. Rode
 
@@ -191,6 +193,7 @@ permite um pedido com três coxinhas e dois sucos.
 | MySQL 8 | Banco de dados |
 | Lombok | Menos boilerplate nos models |
 | Docker | Empacotamento em imagem |
+| H2 | Banco em memória usado só nos testes |
 | GitHub Actions | Build a cada push na master |
 
 ---
