@@ -16,7 +16,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 
 /**
  * Antes desta classe o projeto nao tinha autenticacao nenhuma: qualquer pessoa
@@ -133,10 +135,25 @@ public class SecurityConfig {
                     .deleteCookies("JSESSIONID")
                     .permitAll())
 
+            // Duas respostas diferentes para "nao autenticado", avaliadas na
+            // ordem de registro.
+            //
+            // O mapeamento final nao e redundante: com apenas o de /api/**
+            // registrado, ele vira tambem o padrao de toda a aplicacao, e abrir
+            // /home sem sessao respondia 401 em JSON em vez de levar ao login.
             .exceptionHandling(handling -> handling
+                    // API e actuator sao consumidos por programa (o fetch das
+                    // telas e o coletor de metricas): recebem 401 em JSON.
                     .defaultAuthenticationEntryPointFor(
                             new RespostaJsonNaoAutenticado(),
-                            PathPatternRequestMatcher.pathPattern("/api/**")));
+                            PathPatternRequestMatcher.pathPattern("/api/**"))
+                    .defaultAuthenticationEntryPointFor(
+                            new RespostaJsonNaoAutenticado(),
+                            PathPatternRequestMatcher.pathPattern(actuator + "/**"))
+                    // Navegacao no site recebe o redirect para o login.
+                    .defaultAuthenticationEntryPointFor(
+                            new LoginUrlAuthenticationEntryPoint("/login"),
+                            AnyRequestMatcher.INSTANCE));
 
         return http.build();
     }

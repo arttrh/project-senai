@@ -1,0 +1,25 @@
+# O .gitignore existente fica dentro de project-senai/ e so vale para aquele
+# subdiretorio. Como o .env e o docker-compose ficam aqui na raiz, um .env
+# criado a partir do .env.example seria versionado junto com as senhas.
+.env
+.env.local
+.env.*.local
+
+# Nunca ignorar o modelo: ele e a documentacao das variaveis.
+!.env.example
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Build
+target/
+build/
+*.log

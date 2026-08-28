@@ -65,6 +65,7 @@ CREATE TABLE item_pedido (
     CONSTRAINT ck_item_pedido_quantidade CHECK (quantidade > 0)
 );
 
-CREATE INDEX idx_pedido_usuario ON pedido (id_usuario);
-CREATE INDEX idx_pedido_status  ON pedido (status_pedido);
-CREATE INDEX idx_item_pedido_pedido ON item_pedido (id_pedido);
+-- Apenas o indice que as chaves estrangeiras nao cobrem. O MySQL ja cria um
+-- indice automatico para cada FK, entao indexar id_usuario em pedido ou
+-- id_pedido em item_pedido geraria um segundo indice identico ao primeiro.
+CREATE INDEX idx_pedido_status ON pedido (status_pedido);

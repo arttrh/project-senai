@@ -1,0 +1,20 @@
+# Sem isto, o "COPY src" leva junto target/ inteiro (jars, classes, relatorios)
+# para o contexto do build, deixando a imagem maior e o build mais lento.
+target/
+!target/*.jar
+
+.git/
+.gitignore
+.gitattributes
+
+.idea/
+*.iml
+.vscode/
+
+.env
+*.log
+
+README.md
+REFATORACAO.md
+
+.mvn/wrapper/maven-wrapper.jar

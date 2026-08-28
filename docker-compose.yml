@@ -1,0 +1,67 @@
+# Sobe a aplicacao com o MySQL, sem precisar instalar nada alem do Docker.
+#
+#   cp .env.example .env     # preencha as senhas
+#   docker compose up --build
+#
+# A aplicacao fica em http://localhost:8080
+services:
+
+  banco:
+    image: mysql:8.4
+    container_name: cantina-banco
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD no .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cantinasenai}
+      MYSQL_USER: ${MYSQL_USER:-cantina}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD no .env}
+    ports:
+      # Exposto so no localhost: sem o prefixo, o Docker abre a porta do banco
+      # para a rede inteira, contornando o firewall da maquina.
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - dados-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root",
+             "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  aplicacao:
+    build:
+      context: ./project-senai
+    container_name: cantina-app
+    restart: unless-stopped
+    depends_on:
+      banco:
+        # Espera o banco aceitar conexao: sem isso o Flyway tenta migrar um
+        # MySQL que ainda esta inicializando e a aplicacao morre no boot.
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://banco:3306/${MYSQL_DATABASE:-cantinasenai}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-cantina}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD no .env}
+      SERVER_PORT: "8080"
+      SESSION_TIMEOUT: ${SESSION_TIMEOUT:-30m}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      APP_ADMIN_NOME: ${APP_ADMIN_NOME:-Administrador}
+      APP_ADMIN_CPF: ${APP_ADMIN_CPF:-}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-}
+      APP_ADMIN_SENHA: ${APP_ADMIN_SENHA:-}
+      LOG_LEVEL_APP: ${LOG_LEVEL_APP:-INFO}
+      LOG_LEVEL_SQL: ${LOG_LEVEL_SQL:-WARN}
+      JPA_SHOW_SQL: ${JPA_SHOW_SQL:-false}
+      THYMELEAF_CACHE: ${THYMELEAF_CACHE:-true}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  dados-mysql:

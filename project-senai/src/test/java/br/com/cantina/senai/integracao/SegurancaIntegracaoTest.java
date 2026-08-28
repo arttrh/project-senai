@@ -41,6 +41,21 @@ class SegurancaIntegracaoTest extends BaseIntegracao {
     }
 
     @Test
+    @DisplayName("navegar sem sessao leva para a tela de login, nao para um 401")
+    void telaSemSessaoRedirecionaParaLogin() throws Exception {
+        // Ao contrario da API, uma tela precisa devolver o redirect: com apenas
+        // o entry point de /api/** registrado ele virava o padrao de toda a
+        // aplicacao e /home respondia 401 em JSON para quem so abriu o site.
+        mockMvc.perform(get("/home"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+
+        mockMvc.perform(get("/funcionario"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
     @DisplayName("cliente comum nao entra no painel do funcionario")
     void clienteNaoAcessaPainel() throws Exception {
         mockMvc.perform(get("/api/funcionario/pedidos")

@@ -1,0 +1,91 @@
+# Dependabot da Cantina SENAI.
+#
+# O projeto nao tinha este arquivo. Sem ele o Dependabot so abre alertas de
+# seguranca, e o formulario "Create config file" do GitHub ja vem preenchido com
+# um template de npm, que nao tem nada a ver com um projeto Java/Maven: e por
+# isso que a configuracao aparecia como NPM.
+#
+# Detalhe importante: o pom.xml nao esta na raiz do repositorio, e sim em
+# /project-senai. Um "directory: /" nao encontraria manifesto nenhum e o
+# Dependabot ficaria em silencio, parecendo configurado mas sem nunca abrir PR.
+version: 2
+
+updates:
+  # ── Dependencias Java (pom.xml) ─────────────────────────────────────────
+  - package-ecosystem: "maven"
+    directory: "/project-senai"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencias"
+      - "java"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    groups:
+      # Agrupa o ecossistema Spring: subir spring-boot-starter-web sozinho,
+      # sem os outros modulos da mesma versao, quebra o build.
+      spring:
+        patterns:
+          - "org.springframework*"
+          - "org.springframework.boot:*"
+          - "org.springframework.security:*"
+      testes:
+        patterns:
+          - "org.junit*"
+          - "org.mockito:*"
+          - "org.assertj:*"
+          - "com.h2database:h2"
+        update-types:
+          - "minor"
+          - "patch"
+      # Patches do resto entram num PR so, para nao gerar ruido semanal.
+      demais-patches:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    ignore:
+      # Salto de major do Spring Boot muda API e migration path; e uma decisao
+      # de projeto, nao um PR automatico.
+      - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
+        update-types: ["version-update:semver-major"]
+
+  # ── Actions usadas no CI ────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencias"
+      - "ci"
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # ── Imagens base do Dockerfile ──────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/project-senai"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencias"
+      - "docker"
+    commit-message:
+      prefix: "docker"
