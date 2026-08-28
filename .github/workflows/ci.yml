@@ -144,19 +144,43 @@ jobs:
         run: |
           docker network create rede-cantina
 
+          # O -h 127.0.0.1 no health check e proposital: durante a
+          # inicializacao o entrypoint do MySQL sobe um servidor temporario que
+          # escuta so no socket unix e depois o derruba para subir o definitivo.
+          # Um "mysqladmin ping" pelo socket passa nessa janela, mas a aplicacao
+          # conecta por TCP e encontra a porta fechada -- foi assim que este job
+          # falhou com "Communications link failure" logo no Flyway.
           docker run -d --name banco --network rede-cantina \
             -e MYSQL_ROOT_PASSWORD=raiz-do-ci \
             -e MYSQL_DATABASE=cantinasenai \
+            --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -praiz-do-ci --silent" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=20 \
+            --health-start-period=20s \
             mysql:8.4
 
-          echo "Aguardando o MySQL..."
+          echo "Aguardando o MySQL ficar healthy..."
           for tentativa in $(seq 1 60); do
-            if docker exec banco mysqladmin ping -uroot -praiz-do-ci --silent 2>/dev/null; then
-              echo "MySQL pronto."
+            estado=$(docker inspect --format='{{.State.Health.Status}}' banco 2>/dev/null || echo starting)
+            if [ "$estado" = "healthy" ]; then
+              echo "MySQL healthy."
               break
+            fi
+            if [ "$tentativa" -eq 60 ]; then
+              echo "::error::O MySQL nao ficou healthy a tempo."
+              docker logs banco
+              exit 1
             fi
             sleep 2
           done
+
+          # Ultima confirmacao, pela mesma rota que a aplicacao usa: uma consulta
+          # de verdade, por TCP, a partir de outro container.
+          echo "Confirmando conexao TCP..."
+          docker run --rm --network rede-cantina mysql:8.4 \
+            mysql -h banco -uroot -praiz-do-ci -e "SELECT 1" > /dev/null
+          echo "MySQL aceitando conexao TCP."
 
           docker run -d --name aplicacao --network rede-cantina -p 8080:8080 \
             -e SPRING_DATASOURCE_URL="jdbc:mysql://banco:3306/cantinasenai?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" \
@@ -182,7 +206,9 @@ jobs:
 
       - name: Logs em caso de falha
         if: failure()
-        run: docker logs aplicacao || true
+        run: |
+          echo "── aplicacao ──"; docker logs aplicacao 2>&1 | tail -80 || true
+          echo "── banco ──";     docker logs banco     2>&1 | tail -40 || true
 
   # ── Higiene do repositorio ───────────────────────────────────────────────
   seguranca:
