@@ -55,6 +55,38 @@ class ObservabilidadeIntegracaoTest extends BaseIntegracao {
     }
 
     @Test
+    @DisplayName("o health de dominio reporta o cardapio realmente vendavel")
+    void healthDeDominioContaCardapio() throws Exception {
+        // Uma cantina sem item vendavel esta de pe, mas nao esta funcionando.
+        // O detalhe so aparece para quem esta autorizado a ver.
+        mockMvc.perform(get("/actuator/health")
+                        .with(user(new UsuarioAutenticado(criarUsuario(TipoUsuario.ADMIN)))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.cantina.status").value("UP"))
+                .andExpect(jsonPath("$.components.cantina.details.produtosAtivos")
+                        .value(org.hamcrest.Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$.components.cantina.details.produtosComSaldo")
+                        .value(org.hamcrest.Matchers.greaterThan(0)));
+    }
+
+    @Test
+    @DisplayName("produto sem saldo nao entra na contagem de vendaveis")
+    void healthNaoContaProdutoZerado() throws Exception {
+        long comSaldoAntes = estoqueRepository.contarComSaldo();
+
+        var produto = criarProduto("Item Zerado", "5.00", 0);
+
+        assertThat(estoqueRepository.contarComSaldo())
+                .as("produto criado com saldo zero nao pode contar como vendavel")
+                .isEqualTo(comSaldoAntes);
+        assertThat(produtoRepository.countByProdutoAtivoTrue())
+                .as("mas ele continua ativo no cardapio")
+                .isPositive();
+        assertThat(estoqueRepository.findByProduto_IdProduto(produto.getIdProduto()))
+                .isPresent();
+    }
+
+    @Test
     @DisplayName("toda resposta volta com um correlation id")
     void correlationIdNaResposta() throws Exception {
         mockMvc.perform(get("/actuator/health"))

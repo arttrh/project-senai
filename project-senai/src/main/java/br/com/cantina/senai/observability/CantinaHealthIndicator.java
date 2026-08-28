@@ -27,10 +27,10 @@ public class CantinaHealthIndicator implements HealthIndicator {
     @Override
     @Transactional(readOnly = true)
     public Health health() {
-        long ativos = produtoRepository.findAllByProdutoAtivoTrueOrderByNomeProdutoAsc().size();
-        long comSaldo = estoqueRepository.findAll().stream()
-                .filter(e -> e.getQuantidade() != null && e.getQuantidade() > 0)
-                .count();
+        // Contagem no banco, nao em memoria: o health e consultado a cada 30s
+        // pelo Docker, e trazer as tabelas inteiras a cada consulta sairia caro.
+        long ativos = produtoRepository.countByProdutoAtivoTrue();
+        long comSaldo = estoqueRepository.contarComSaldo();
 
         Health.Builder status = (ativos > 0 && comSaldo > 0) ? Health.up() : Health.down();
         return status

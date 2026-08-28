@@ -29,6 +29,14 @@ public interface EstoqueRepository extends JpaRepository<Estoque, Long> {
      * ambos passam na checagem, deixando o estoque negativo. O @Version da
      * entidade cobre o caso geral; aqui a trava evita ate a tentativa perdida.
      */
+    /** Conta no banco, sem trazer as linhas: usado pelo gauge do Prometheus. */
+    @Query("SELECT COUNT(e) FROM Estoque e WHERE e.quantidade <= 0")
+    long contarSemSaldo();
+
+    /** Contraparte da anterior, usada pelo health check de dominio. */
+    @Query("SELECT COUNT(e) FROM Estoque e WHERE e.quantidade > 0 AND e.produto.produtoAtivo = true")
+    long contarComSaldo();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM Estoque e WHERE e.produto.idProduto = :idProduto")
     Optional<Estoque> bloquearPorProduto(Long idProduto);

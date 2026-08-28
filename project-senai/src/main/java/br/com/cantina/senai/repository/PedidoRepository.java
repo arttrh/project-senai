@@ -46,4 +46,11 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     List<Pedido> buscarPorUsuarioComItens(Long idUsuario);
 
     long countByStatusPedido(StatusPedido statusPedido);
+
+    /**
+     * Conta a fila inteira numa consulta so. Somar tres countByStatusPedido
+     * separados leria cada status numa transacao diferente, podendo devolver um
+     * retrato inconsistente enquanto pedidos mudam de estado.
+     */
+    long countByStatusPedidoIn(Collection<StatusPedido> status);
 }

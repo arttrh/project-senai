@@ -15,4 +15,6 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     boolean existsByNomeProdutoAndIdProdutoNot(String nomeProduto, Long idProduto);
 
     List<Produto> findAllByProdutoAtivoTrueOrderByNomeProdutoAsc();
+
+    long countByProdutoAtivoTrue();
 }
