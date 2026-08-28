@@ -1,161 +1,171 @@
-/* ── DADOS (buscados do backend) ── */
-let produtos = [];
-let produtosMapeados = {};
-let carrinho = {};
-let catAtual = 'todos';
+/*
+ * Cardapio.
+ *
+ * Mudancas em relacao a versao anterior:
+ *  - preco de verdade, vindo de /api/produtos (o DTO nao tinha preco, entao a
+ *    tela exibia "R$ --" fixo e o total do carrinho era sempre zero);
+ *  - a categoria vem do produto, entao os filtros Lanche/Bebida/Sobremesa
+ *    finalmente separam alguma coisa (antes todo item nascia com cat 'todos');
+ *  - o botao de adicionar respeita o saldo em estoque;
+ *  - o polling de 10s nao apaga mais o que o usuario esta fazendo.
+ */
 
-/* ── CARREGAR PRODUTOS DO BACKEND ── */
-function carregarProdutos() {
-    fetch('/api/produtos') // Certifique-se de que esta URL é a mesma do seu @RestController no Java
-        .then(response => {
-            if (!response.ok) throw new Error('Erro na rede ou endpoint não encontrado');
-            return response.json();
-        })
-        .then(data => {
-            produtosMapeados = {};
-            data.forEach(p => {
-                produtosMapeados[p.idProduto] = {
-                    ...p,
-                    emoji: '🍔', // Enfeite padrão, já que não temos imagem no banco
-                    bg: 'bg-rosa',
-                    cat: 'todos',
-                    disponivel: true
-                };
-            });
-            restaurarCarrinho();
-            renderGrid();
-        })
-        .catch(error => {
-            console.error('Falha ao buscar produtos do backend:', error);
-            // Removi os dados falsos. Se ficar vazio, é porque o Java não retornou nada!
-        });
+let produtos = [];
+let carrinho = App.lerCarrinho();
+let categoriaAtual = 'todos';
+
+const EMOJI_POR_CATEGORIA = { LANCHE: '🍔', BEBIDA: '🥤', SOBREMESA: '🍰' };
+const FUNDO_POR_CATEGORIA = { LANCHE: 'bg-rosa', BEBIDA: 'bg-azul', SOBREMESA: 'bg-amarelo' };
+
+async function carregarProdutos() {
+    try {
+        produtos = await App.requisitar('/api/produtos');
+        removerItensIndisponiveis();
+        renderGrid();
+        atualizarCartBar();
+    } catch (erro) {
+        console.error('Falha ao carregar o cardapio:', erro);
+        App.toast(erro.message, 'erro');
+    }
 }
 
-/* ── RENDERIZAÇÃO DA TELA ── */
+/** Produto que saiu do cardapio ou zerou o estoque nao pode ficar no carrinho. */
+function removerItensIndisponiveis() {
+    const disponiveis = new Map(produtos.map(p => [String(p.idProduto), p]));
+    let mudou = false;
+
+    Object.keys(carrinho).forEach(id => {
+        const produto = disponiveis.get(id);
+        if (!produto || !produto.disponivel) {
+            delete carrinho[id];
+            mudou = true;
+        } else if (carrinho[id] > produto.quantidadeEstoque) {
+            carrinho[id] = produto.quantidadeEstoque;
+            mudou = true;
+        }
+    });
+
+    if (mudou) {
+        App.gravarCarrinho(carrinho);
+    }
+}
+
 function renderGrid() {
-    const busca = document.getElementById('busca').value.toLowerCase();
-    const grid  = document.getElementById('grid');
+    const grid = document.getElementById('grid');
     const vazio = document.getElementById('vazio');
+    const busca = (document.getElementById('busca').value || '').toLowerCase();
+    if (!grid) {
+        return;
+    }
 
-    if (!grid) return;
-    grid.innerHTML = '';
-
-    const todosProdutos = Object.values(produtosMapeados);
-    const filtrados = todosProdutos.filter(p =>
-        (catAtual === 'todos' || p.cat === catAtual) &&
+    const filtrados = produtos.filter(p =>
+        (categoriaAtual === 'todos' || p.categoria === categoriaAtual) &&
         p.nomeProduto.toLowerCase().includes(busca)
     );
 
     vazio.style.display = filtrados.length === 0 ? 'block' : 'none';
+    grid.innerHTML = filtrados.map(cartaoDoProduto).join('');
+}
 
-    filtrados.forEach(p => {
-        const qtd  = carrinho[p.idProduto] || 0;
-        const card = document.createElement('div');
-        card.className = 'food-card' + (p.disponivel ? '' : ' esgotado');
+function cartaoDoProduto(produto) {
+    const quantidade = carrinho[produto.idProduto] || 0;
+    const emoji = EMOJI_POR_CATEGORIA[produto.categoria] || '🍽️';
+    const fundo = FUNDO_POR_CATEGORIA[produto.categoria] || 'bg-rosa';
+    const noLimite = quantidade >= produto.quantidadeEstoque;
 
-        const controles = qtd > 0
-            ? `<div class="card-controles">
-                   <button class="btn-ctrl btn-menos" onclick="removeItem(${p.idProduto})">−</button>
-                   <span class="card-qtd">${qtd}</span>
-                   <button class="btn-ctrl btn-mais" onclick="addItem(${p.idProduto})">+</button>
-               </div>`
-            : `<button class="btn-add" onclick="addItem(${p.idProduto})" ${!p.disponivel ? 'disabled' : ''}>+</button>`;
+    const controles = quantidade > 0
+        ? `<div class="card-controles">
+               <button class="btn-ctrl btn-menos" onclick="removerItem(${produto.idProduto})"
+                       aria-label="Remover um">−</button>
+               <span class="card-qtd">${quantidade}</span>
+               <button class="btn-ctrl btn-mais" onclick="adicionarItem(${produto.idProduto})"
+                       ${noLimite ? 'disabled' : ''} aria-label="Adicionar um">+</button>
+           </div>`
+        : `<button class="btn-add" onclick="adicionarItem(${produto.idProduto})"
+                   ${produto.disponivel ? '' : 'disabled'} aria-label="Adicionar ao pedido">+</button>`;
 
-        // O preço está de enfeite (R$ --) já que não existe no banco
-        card.innerHTML = `
-        <div class="card-img ${p.bg}">
-            <span style="font-size:38px">${p.emoji}</span>
-            <span class="badge ${p.disponivel ? 'badge-ok' : 'badge-nao'}">
-                ${p.disponivel ? 'Disponível' : 'Esgotado'}
+    return `
+    <div class="food-card${produto.disponivel ? '' : ' esgotado'}">
+        <div class="card-img ${fundo}">
+            <span style="font-size:38px">${emoji}</span>
+            <span class="badge ${produto.disponivel ? 'badge-ok' : 'badge-nao'}">
+                ${produto.disponivel ? 'Disponível' : 'Esgotado'}
             </span>
         </div>
         <div class="card-body">
-            <p class="card-nome">${p.nomeProduto}</p>
-            <p class="card-desc">${p.descricaoProduto}</p>
+            <p class="card-nome">${App.escapar(produto.nomeProduto)}</p>
+            <p class="card-desc">${App.escapar(produto.descricaoProduto || '')}</p>
             <div class="card-footer">
-                <span class="card-preco">R$ --</span>
+                <span class="card-preco">${App.moeda(produto.preco)}</span>
                 ${controles}
             </div>
-        </div>`;
-
-        grid.appendChild(card);
-    }); // Faltava fechar o forEach aqui no seu código original!
+        </div>
+    </div>`;
 }
 
-/* ── LÓGICA DO CARRINHO ── */
-function addItem(id) {
-    carrinho[id] = (carrinho[id] || 0) + 1;
-    salvarCarrinho();
+function produtoPorId(id) {
+    return produtos.find(p => p.idProduto === Number(id));
+}
+
+function adicionarItem(id) {
+    const produto = produtoPorId(id);
+    if (!produto || !produto.disponivel) {
+        return;
+    }
+    const atual = carrinho[id] || 0;
+    if (atual >= produto.quantidadeEstoque) {
+        App.toast(`Só temos ${produto.quantidadeEstoque} de ${produto.nomeProduto}.`, 'erro');
+        return;
+    }
+    carrinho[id] = atual + 1;
+    persistirEAtualizar();
+}
+
+function removerItem(id) {
+    if (!carrinho[id]) {
+        return;
+    }
+    carrinho[id] -= 1;
+    if (carrinho[id] <= 0) {
+        delete carrinho[id];
+    }
+    persistirEAtualizar();
+}
+
+function persistirEAtualizar() {
+    App.gravarCarrinho(carrinho);
     atualizarCartBar();
     renderGrid();
 }
 
-function removeItem(id) {
-    if (!carrinho[id]) return;
-    carrinho[id]--;
-    if (carrinho[id] === 0) delete carrinho[id];
-    salvarCarrinho();
-    atualizarCartBar();
-    renderGrid();
-}
-
+/** Agora soma dinheiro de verdade, porque o preco existe no DTO. */
 function atualizarCartBar() {
-    let qtdTotal = 0;
+    const barra = document.getElementById('cartBar');
+    if (!barra) {
+        return;
+    }
 
-    // Conta apenas a quantidade de itens, sem tentar somar dinheiro inexistente
-    Object.keys(carrinho).forEach(id => {
-        qtdTotal += carrinho[id];
+    let quantidadeTotal = 0;
+    let valorTotal = 0;
+
+    Object.entries(carrinho).forEach(([id, quantidade]) => {
+        const produto = produtoPorId(id);
+        quantidadeTotal += quantidade;
+        if (produto) {
+            valorTotal += Number(produto.preco) * quantidade;
+        }
     });
 
-    const cartBar = document.getElementById('cartBar');
-    if (cartBar) {
-        document.getElementById('cartQtd').textContent = qtdTotal;
-
-        // Proteção para evitar erro caso não tenha o elemento cartTotal no HTML
-        const elTotal = document.getElementById('cartTotal');
-        if (elTotal) elTotal.textContent = 'R$ --';
-
-        document.getElementById('cartLabel').textContent = qtdTotal === 1 ? 'item' : 'itens';
-        cartBar.classList.toggle('hidden', qtdTotal === 0);
-
-        // 👇 AQUI ESTÁ A MÁGICA DO REDIRECIONAMENTO 👇
-        // Se a barra do carrinho estiver visível e o usuário clicar nela, vai para a outra página
-        cartBar.onclick = function() {
-            // Mude 'finalizar.html' para o nome exato do seu arquivo HTML de destino
-            window.location.href = '/pedido/finalizar';
-        };
-        // Para garantir que o cursor vire uma mãozinha indicando que é clicável:
-        cartBar.style.cursor = 'pointer';
-    }
+    document.getElementById('cartQtd').textContent = quantidadeTotal;
+    document.getElementById('cartTotal').textContent = App.moeda(valorTotal);
+    document.getElementById('cartLabel').textContent = quantidadeTotal === 1 ? 'item' : 'itens';
+    barra.classList.toggle('hidden', quantidadeTotal === 0);
 }
 
-function salvarCarrinho() {
-    sessionStorage.setItem('carrinho', JSON.stringify(carrinho));
-}
-
-function restaurarCarrinho() {
-    const carrinhoSalvo = sessionStorage.getItem('carrinho');
-    if (carrinhoSalvo) {
-        carrinho = JSON.parse(carrinhoSalvo);
-        atualizarCartBar();
-    }
-}
-
-// Inicialização das datas
-(function() {
-    const dias   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    const meses  = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-    const hoje   = new Date();
-    const elData = document.getElementById('dataHoje');
-    if (elData) {
-        elData.textContent = dias[hoje.getDay()] + ', ' + hoje.getDate() + ' de ' + meses[hoje.getMonth()];
-    }
-})();
-
-function setCategoria(cat, el) {
-    catAtual = cat;
+function setCategoria(categoria, botao) {
+    categoriaAtual = categoria;
     document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active'));
-    el.classList.add('active');
+    botao.classList.add('active');
     renderGrid();
 }
 
@@ -163,22 +173,17 @@ function filtrar() {
     renderGrid();
 }
 
-function carregarNomeUsuario() {
-    const nomeSalvo = sessionStorage.getItem('usuarioNome');
-    const elNome = document.getElementById('nomeUsuarioTopo');
-
-    if (nomeSalvo && elNome) {
-        // Pega apenas o primeiro nome para não ficar muito grande no topo
-        const primeiroNome = nomeSalvo.split(' ')[0];
-        elNome.textContent = primeiroNome;
+function mostrarDataDeHoje() {
+    const elemento = document.getElementById('dataHoje');
+    if (elemento) {
+        elemento.textContent = new Date().toLocaleDateString('pt-BR', {
+            weekday: 'short', day: 'numeric', month: 'long'
+        });
     }
 }
 
-// Chame essa função assim que a página carregar
-carregarNomeUsuario();
-
-/* ── START ── */
+mostrarDataDeHoje();
 carregarProdutos();
 
-// Atualiza os produtos a cada 10 segundos
-setInterval(carregarProdutos, 10000);
+// Mantem o saldo em dia sem atrapalhar quem esta montando o pedido.
+setInterval(carregarProdutos, 30000);

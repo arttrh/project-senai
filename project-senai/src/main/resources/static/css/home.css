@@ -325,3 +325,14 @@ body {
 .btn-mais { background: #E3000F; border-color: #E3000F; color: #fff; }
 .btn-mais:hover { background: #c0000d; }
 .btn-menos:hover { background: #fff5f5; border-color: #E3000F; color: #E3000F; }
+/* Item sem saldo continua visível, mas claramente indisponível. */
+.food-card.esgotado          { opacity: 0.55; }
+.food-card.esgotado .btn-add { cursor: not-allowed; }
+
+.btn-ctrl:disabled,
+.btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+    .filtros-wrap { flex-wrap: wrap; }
+    .card-grid    { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}

@@ -367,3 +367,9 @@ body {
 }
 
 .btn-modal:hover { background: #c0000d; }
+.btn-confirmar:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (max-width: 820px) {
+    .pagamento-opts { grid-template-columns: repeat(2, 1fr); }
+    .item-row       { flex-wrap: wrap; gap: 8px; }
+}

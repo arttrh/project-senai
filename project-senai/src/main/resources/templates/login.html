@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Entrar – Cantina SENAI</title>
+    <link rel="stylesheet" th:href="@{/css/login.css}">
+</head>
+<body>
+
+<div class="screen">
+    <div class="card">
+
+        <div class="logo-area">
+            <div class="senai-badge">
+                <div class="senai-block">SENAI</div>
+                <div class="senai-divider"></div>
+                <div class="senai-sub">
+                    <div class="line1">Sistema</div>
+                    <div class="line2">Cantina SENAI</div>
+                </div>
+            </div>
+            <p>Entre para fazer seu pedido</p>
+        </div>
+
+        <p class="erro-msg" th:if="${param.erro}">E-mail ou senha incorretos.</p>
+        <p class="erro-msg sucesso" th:if="${param.cadastrado}">
+            Conta criada! Faça login para continuar.
+        </p>
+        <p class="erro-msg sucesso" th:if="${param.saiu}">Você saiu da sua conta.</p>
+
+        <form th:action="@{/login}" method="post">
+            <div class="form-group">
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="email" placeholder="exemplo@email.com"
+                       required autofocus autocomplete="username"/>
+            </div>
+
+            <div class="form-group">
+                <label for="senha">Senha</label>
+                <input type="password" id="senha" name="senha" placeholder="••••••••"
+                       required autocomplete="current-password"/>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-entrar">Entrar</button>
+            </div>
+        </form>
+
+        <div class="divider"><span>ou</span></div>
+
+        <a class="btn-cadastro" th:href="@{/usuario/cadastrar}">Criar uma conta</a>
+
+        <div class="footer-bar"></div>
+    </div>
+</div>
+
+</body>
+</html>

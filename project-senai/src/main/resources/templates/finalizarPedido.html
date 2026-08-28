@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Finalizar Pedido – Cantina SENAI</title>
     <link rel="stylesheet" th:href="@{/css/global.css}">
     <link rel="stylesheet" th:href="@{/css/finalizarPedido.css}">
@@ -30,7 +31,7 @@
                 <span class="card-header-badge" id="qtdBadge">0 itens</span>
             </div>
             <div class="item-lista" id="listaItens">
-                <p class="vazio-msg">Nenhum item no carrinho.</p>
+                <p class="vazio-msg">Carregando...</p>
             </div>
         </div>
     </div>
@@ -40,27 +41,29 @@
             <div class="card-header">
                 <span class="card-header-titulo">Forma de pagamento</span>
             </div>
+            <!-- data-forma casa com o enum FormaPagamento do back. Antes o JS
+                 mandava o rótulo visível ("Cartão"), que o servidor não aceita. -->
             <div class="pagamento-opts">
-                <button class="pag-btn selected" onclick="setPag(this)">
+                <button class="pag-btn selected" data-forma="CARTAO" onclick="setPag(this)">
                     <span class="pag-icon">💳</span>
                     <span class="pag-label">Cartão</span>
                 </button>
-                <button class="pag-btn" onclick="setPag(this)">
+                <button class="pag-btn" data-forma="DINHEIRO" onclick="setPag(this)">
                     <span class="pag-icon">💵</span>
                     <span class="pag-label">Dinheiro</span>
                 </button>
-                <button class="pag-btn" onclick="setPag(this)">
+                <button class="pag-btn" data-forma="PIX" onclick="setPag(this)">
                     <span class="pag-icon">📱</span>
                     <span class="pag-label">Pix</span>
                 </button>
-                <button class="pag-btn" onclick="setPag(this)">
+                <button class="pag-btn" data-forma="SALDO_SENAI" onclick="setPag(this)">
                     <span class="pag-icon">🏫</span>
                     <span class="pag-label">Saldo SENAI</span>
                 </button>
             </div>
             <div class="obs-wrap">
-                <span class="obs-label">Observações (opcional)</span>
-                <textarea class="obs-input" rows="2"
+                <label class="obs-label" for="observacao">Observações (opcional)</label>
+                <textarea class="obs-input" id="observacao" rows="2" maxlength="255"
                           placeholder="Ex: sem cebola, alergia a glúten..."></textarea>
             </div>
         </div>
@@ -83,12 +86,17 @@
         <div class="modal-icon">✅</div>
         <p class="modal-titulo">Pedido enviado!</p>
         <p class="modal-sub">Seu pedido foi recebido e está sendo preparado.</p>
-        <p class="modal-num" id="numPedido">#0042</p>
+        <p class="modal-num" id="numPedido">#0000</p>
         <p class="modal-num-label">Número do pedido</p>
-        <button class="btn-modal" onclick="window.location.href='/home'">Voltar ao início</button>
+        <button class="btn-modal" onclick="window.location.href='/pedido/meus'">
+            Acompanhar pedido
+        </button>
     </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
+<script th:src="@{/js/app.js}"></script>
 <script th:src="@{/js/finalizarPedido.js}"></script>
 </body>
 </html>

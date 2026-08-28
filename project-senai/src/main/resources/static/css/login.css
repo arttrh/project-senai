@@ -207,3 +207,30 @@ body {
 @media (max-width: 400px) {
     .form-row-2 { grid-template-columns: 1fr; }
 }
+/* ── Ações do formulário e mensagens de validação ───────────────────────────
+   O cadastro passou a mostrar erro por campo (vindo do BindingResult) e o
+   login mostra confirmação de cadastro e de logout, então estas classes
+   faltavam na folha.
+*/
+.form-actions { margin-top: 1.25rem; }
+
+.erro-campo {
+    display: block;
+    color: #E3000F;
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+.erro-msg.sucesso {
+    color: #0a7d33;
+    background: #eaf7ee;
+    border-color: #bfe3ca;
+}
+
+.modal-titulo {
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 8px;
+    color: #1a1a1a;
+}

@@ -1,125 +1,152 @@
-let carrinho = JSON.parse(sessionStorage.getItem('carrinho') || '{}');
-let produtosMapeados = {};
+/*
+ * Revisao e envio do pedido.
+ *
+ * O confirmar() antigo montava a lista de itens e mandava so o primeiro
+ * (`JSON.stringify(itens[0])`), no formato {produtoId, quantidade, pagamento,
+ * observacao}, que nao era o que o back esperava: um carrinho com tres itens
+ * virava um pedido de um item so. Agora vai o carrinho inteiro, uma vez, no
+ * contrato de DTOCadastroPedido.
+ */
 
-/* ── CARREGAR PRODUTOS DO BACKEND ── */
-function carregarProdutos() {
-    fetch('/api/produtos')
-        .then(response => {
-            if (!response.ok) throw new Error('Erro ao carregar produtos');
-            return response.json();
-        })
-        .then(data => {
-            produtosMapeados = {};
-            data.forEach(p => {
-                // Mapeia usando idProduto ou id (verifique seu DTO)
-                produtosMapeados[p.idProduto || p.id] = p;
-            });
-            render();
-        })
-        .catch(error => {
-            console.error('Erro na API, usando dados locais:', error);
-            usarDadosLocais();
-        });
+let produtos = [];
+let carrinho = App.lerCarrinho();
+let formaPagamento = 'CARTAO';
+
+async function carregarProdutos() {
+    try {
+        produtos = await App.requisitar('/api/produtos');
+        render();
+    } catch (erro) {
+        console.error('Falha ao carregar produtos:', erro);
+        App.toast(erro.message, 'erro');
+    }
 }
 
-function fmt(v) {
-    return v ? 'R$ ' + v.toFixed(2).replace('.', ',') : 'R$ 0,00';
+function produtoPorId(id) {
+    return produtos.find(p => p.idProduto === Number(id));
 }
 
-/* ── RENDER ── */
 function render() {
-    const lista  = document.getElementById('listaItens');
+    const lista = document.getElementById('listaItens');
     const resumo = document.getElementById('resumoLinhas');
-    lista.innerHTML  = '';
-    resumo.innerHTML = '';
+    const botao = document.getElementById('btnConfirmar');
 
     const ids = Object.keys(carrinho).filter(id => carrinho[id] > 0);
 
     if (ids.length === 0) {
         lista.innerHTML = '<p class="vazio-msg">Nenhum item no carrinho.</p>';
+        resumo.innerHTML = '';
         document.getElementById('qtdBadge').textContent = '0 itens';
-        document.getElementById('totalValor').textContent = 'R$ 0,00';
-        document.getElementById('btnConfirmar').disabled = true;
+        document.getElementById('totalValor').textContent = App.moeda(0);
+        botao.disabled = true;
         return;
     }
 
     let total = 0;
     let totalItens = 0;
+    const linhasLista = [];
+    const linhasResumo = [];
 
     ids.forEach(id => {
-        const p = produtosMapeados[id];
-        if (!p) return;
+        const produto = produtoPorId(id);
+        if (!produto) {
+            return;
+        }
+        const quantidade = carrinho[id];
+        const subtotal = Number(produto.preco) * quantidade;
+        total += subtotal;
+        totalItens += quantidade;
 
-        const qtd = carrinho[id];
-        const sub = p.preco * qtd;
-        total += sub;
-        totalItens += qtd;
-
-        // Resumo lateral
-        resumo.innerHTML += `
+        linhasResumo.push(`
             <div class="resumo-linha">
-                <span class="resumo-label">${p.nome || p.nomeProduto} x${qtd}</span>
-                <span class="resumo-valor">${fmt(sub)}</span>
-            </div>`;
+                <span class="resumo-label">${App.escapar(produto.nomeProduto)} x${quantidade}</span>
+                <span class="resumo-valor">${App.moeda(subtotal)}</span>
+            </div>`);
 
-        // Lista principal
-        lista.innerHTML += `
+        linhasLista.push(`
             <div class="item-row">
                 <div class="item-info">
-                    <p class="item-nome">${p.nome || p.nomeProduto}</p>
-                    <p class="item-sub">${fmt(p.preco)} / unid.</p>
+                    <p class="item-nome">${App.escapar(produto.nomeProduto)}</p>
+                    <p class="item-sub">${App.moeda(produto.preco)} / unid.</p>
                 </div>
                 <div class="item-controles">
-                    <button class="ctrl-btn" onclick="alterar(${id}, -1)">−</button>
-                    <span class="item-qtd">${qtd}</span>
-                    <button class="ctrl-btn" onclick="alterar(${id}, 1)">+</button>
+                    <button class="ctrl-btn" onclick="alterar(${produto.idProduto}, -1)">−</button>
+                    <span class="item-qtd">${quantidade}</span>
+                    <button class="ctrl-btn" onclick="alterar(${produto.idProduto}, 1)"
+                            ${quantidade >= produto.quantidadeEstoque ? 'disabled' : ''}>+</button>
                 </div>
-                <span class="item-preco">${fmt(sub)}</span>
-            </div>`;
+                <span class="item-preco">${App.moeda(subtotal)}</span>
+            </div>`);
     });
 
-    document.getElementById('qtdBadge').textContent = `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}`;
-    document.getElementById('totalValor').textContent = fmt(total);
-    document.getElementById('btnConfirmar').disabled = false;
+    lista.innerHTML = linhasLista.join('');
+    resumo.innerHTML = linhasResumo.join('');
+    document.getElementById('qtdBadge').textContent =
+        `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}`;
+    document.getElementById('totalValor').textContent = App.moeda(total);
+    botao.disabled = false;
 }
 
 function alterar(id, delta) {
-    carrinho[id] = (carrinho[id] || 0) + delta;
-    if (carrinho[id] <= 0) delete carrinho[id];
-    sessionStorage.setItem('carrinho', JSON.stringify(carrinho));
+    const produto = produtoPorId(id);
+    const nova = (carrinho[id] || 0) + delta;
+
+    if (produto && delta > 0 && nova > produto.quantidadeEstoque) {
+        App.toast(`Só temos ${produto.quantidadeEstoque} de ${produto.nomeProduto}.`, 'erro');
+        return;
+    }
+    if (nova <= 0) {
+        delete carrinho[id];
+    } else {
+        carrinho[id] = nova;
+    }
+    App.gravarCarrinho(carrinho);
     render();
 }
 
-function setPag(el) {
+function setPag(botao) {
     document.querySelectorAll('.pag-btn').forEach(b => b.classList.remove('selected'));
-    el.classList.add('selected');
+    botao.classList.add('selected');
+    formaPagamento = botao.dataset.forma;
 }
 
-/* ── CONFIRMAR PEDIDO ── */
-function confirmar() {
-    const pagamento = document.querySelector('.pag-btn.selected .pag-label').textContent;
-    const obs = document.querySelector('.obs-input').value;
+async function confirmar() {
+    const botao = document.getElementById('btnConfirmar');
+    const itens = Object.entries(carrinho)
+        .filter(([, quantidade]) => quantidade > 0)
+        .map(([idProduto, quantidade]) => ({
+            idProduto: Number(idProduto),
+            quantidade: quantidade
+        }));
 
-    const itens = Object.keys(carrinho).map(id => ({
-        produtoId: parseInt(id),
-        quantidade: carrinho[id],
-        pagamento: pagamento,
-        observacao: obs
-    }));
+    if (itens.length === 0) {
+        return;
+    }
 
-    // Envia o primeiro item (ou ajuste para enviar a lista toda se sua API suportar)
-    fetch('/api/pedidos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(itens[0])
-    })
-        .then(res => {
-            if(!res.ok) throw new Error();
-            document.getElementById('modalSucesso').classList.add('show');
-            sessionStorage.removeItem('carrinho');
-        })
-        .catch(() => alert("Erro ao enviar pedido ao funcionário."));
+    // Trava o botao: dois cliques rapidos criavam dois pedidos iguais.
+    botao.disabled = true;
+    botao.textContent = 'Enviando...';
+
+    try {
+        const pedido = await App.requisitar('/api/pedidos', {
+            method: 'POST',
+            body: {
+                itens: itens,
+                formaPagamento: formaPagamento,
+                observacao: document.querySelector('.obs-input').value || null
+            }
+        });
+
+        App.limparCarrinho();
+        carrinho = {};
+        document.getElementById('numPedido').textContent =
+            '#' + String(pedido.idPedido).padStart(4, '0');
+        document.getElementById('modalSucesso').classList.add('show');
+    } catch (erro) {
+        App.toast(erro.message, 'erro');
+        botao.disabled = false;
+        botao.textContent = 'Confirmar pedido';
+    }
 }
 
-// Inicialização
 carregarProdutos();

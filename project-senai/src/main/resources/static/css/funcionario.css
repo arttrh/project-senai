@@ -451,3 +451,41 @@ body { background: #f5f5f5; }
     color: #aaa;
     font-size: 14px;
 }
+/* ── Status do pedido ───────────────────────────────────────────────────────
+   As cores existiam só para pendente/pronto/entregue, rótulos que o back nunca
+   usou. Agora acompanham os valores reais do enum StatusPedido.
+*/
+.pedido-status.status-criado,
+.status-badge.status-criado          { background: #fff4e5; color: #b35c00; }
+
+.pedido-status.status-em_preparacao,
+.status-badge.status-em_preparacao   { background: #e7f0ff; color: #0b4fa8; }
+
+.pedido-status.status-pronto,
+.status-badge.status-pronto          { background: #eaf7ee; color: #0a7d33; }
+
+.pedido-status.status-finalizado,
+.status-badge.status-finalizado      { background: #f0f0f0; color: #666; }
+
+.pedido-status.status-cancelado,
+.status-badge.status-cancelado       { background: #fdecec; color: #b3000c; }
+
+.pedido-card.cancelado { opacity: 0.65; }
+
+.btn-acao.cancelar {
+    background: transparent;
+    border: 1px solid var(--cinza-borda, #e8e8e8);
+    color: #b3000c;
+}
+
+.btn-acao.cancelar:hover { background: #fdecec; }
+
+/* Cabeçalho reaproveitado pela tela "Meus pedidos". */
+.page-header  { margin-bottom: 1.5rem; }
+.page-eyebrow { color: var(--texto-muted, #888); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.page-title   { color: var(--branco, #fff); font-size: 26px; font-weight: 700; margin-top: 4px; }
+
+@media (max-width: 720px) {
+    .estoque-table-wrap { overflow-x: auto; }
+    .filtros-pedido     { flex-direction: column; align-items: stretch; gap: 10px; }
+}

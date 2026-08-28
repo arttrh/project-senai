@@ -92,3 +92,43 @@ body {
 
 .btn-sair:hover,
 .btn-voltar:hover { background: rgba(255,255,255,0.25); }
+/* ── TOAST ──────────────────────────────────────────────────────────────────
+   Ficava só em funcionario.css e configuracaoUsuario.css. Como todas as telas
+   agora avisam o usuário quando uma chamada falha, o componente subiu para cá.
+*/
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(140%);
+    background: var(--texto);
+    color: var(--branco);
+    padding: 12px 22px;
+    border-radius: 8px;
+    font-size: 13px;
+    max-width: min(90vw, 460px);
+    text-align: center;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+    opacity: 0;
+    transition: transform 0.28s ease, opacity 0.28s ease;
+    z-index: 999;
+    pointer-events: none;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.toast.erro { background: var(--vermelho-dark); }
+
+/* Botão de logout dentro do <form> de logout, para o POST levar o token CSRF. */
+button.btn-sair {
+    font-family: inherit;
+}
+
+@media (max-width: 640px) {
+    .navbar     { padding: 0 1rem; gap: 8px; }
+    .nav-titulo { display: none; }
+    .nav-user span { display: none; }
+}
