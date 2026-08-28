@@ -4,7 +4,7 @@
 # As dependencias sao baixadas antes de copiar o codigo, para que uma mudanca
 # em src nao invalide o cache do Maven e refaca o download a cada build.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3-eclipse-temurin-26 AS build
 
 WORKDIR /build
 
