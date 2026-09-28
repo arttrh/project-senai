@@ -37,7 +37,7 @@ RUN java -Djarmode=tools -jar target/*.jar extract --layers --destination extrai
 # ─────────────────────────────────────────────────────────────────────────────
 # Etapa 2: execucao
 # ─────────────────────────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:24-jre
 
 # curl e usado pelo HEALTHCHECK abaixo.
 RUN apt-get update \
